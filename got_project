@@ -1,0 +1,162 @@
+
+setwd("C:/Users/khodr/Documents/Self Actualization/IDP/big data")
+ou https://www.kaggle.com/mylesoneill/game-of-thrones
+
+rm(list = ls()) #limpando o global environment
+
+theme_set(
+  theme_minimal() +
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor = element_blank())
+)
+
+library(lubridate)
+library(dplyr)
+library(readr)
+library(tidyverse)
+library(janitor)
+library(ggplot2)
+library(plotrix)
+library(lattice)
+library(kableExtra)
+
+mortes_personal <- read_csv("character-deaths.csv")
+batalhas <- read_csv("battles.csv")
+
+summary(mortes_personal)
+summary(batalhas)
+glimpse(mortes_personal)
+glimpse(batalhas)
+
+#atacantes vs defensores pelo 
+
+vs <- ggplot(batalhas, aes(defender_size, attacker_size)) +
+  geom_point(aes(color = attacker_outcome)) +
+  labs(x= "Tamanho do defensor", y = "Tamnho do atacante",
+       title = "Atacante vs defensor")
+vs
+
+#podemos ver quando maior o tamanho do exercíto, a tendência é de perda nas batalhas
+
+#batalhas por reis
+
+reis <- ggplot(batalhas, aes(attacker_king, fill = attacker_king))+
+  geom_histogram(stat = "count", width=0.5)+
+  labs(x="Rei(s) atacantes", title = "Número de batalhas por reis")+
+  theme(axis.text = element_text(angle = 60, hjust = 1))
+reis
+
+#Joffrey/Tommen Baratheon com muito 'sangue no olho'
+
+#batalhas por região e repartição dessas batalhas pelo rei
+
+brp <- ggplot(batalhas, aes(region, fill= attacker_king))+
+  geom_histogram(stat = "count", width = 0.5)+
+  labs(x="Regiões", title = "Número de batalhas por região e repartição dessas batalhas pelo rei")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+brp
+
+#the riverlands com uma repartição alta de Joffrey/Tommen Baratheon
+#Robb stark também com grande parte
+
+#batalhas por localização
+
+regiao <- ggplot(batalhas, aes(location, fill= region)) +
+  geom_histogram(stat = "count", width= 0.5)+
+  labs(x= "regiões", title = "batalhas por localização")+
+  coord_flip()
+regiao
+
+#tamanho do exercíto ofensivo por rei
+
+tam <- ggplot(batalhas, aes(x=attacker_size, fill=attacker_king))+
+  geom_histogram()+
+  labs(title = "Tamanho do exercíto ofensivo por rei")
+tam
+
+#capturas por ano
+
+cap_ano <- aggregate(list(Captures=batalhas$major_capture),
+                     by=list(batalhas$year),
+                     FUN=sum, na.rm=TRUE)
+cap_ano
+
+
+#fazer uma tabela
+
+ cap_ano %>%
+ kbl()%>%
+   kable_material("striped", "hover")
+                
+### Podemos ver que o ano de 299 teve o maior número de capturas
+###
+###
+
+#mortes por ano
+
+mortes_ano <- aggregate(list(Deaths=batalhas$major_death),
+                       by=list(Years=batalhas$year),
+                       FUN=sum, na.rm=TRUE)
+
+mortes_ano
+
+mortes_ano %>%
+  kbl()%>%
+  kable_material("striped", "hover")
+
+#concidentalmente o ano de 299 também apresenta o maior número de mortes
+
+#visualização de capturas por ano
+
+caps_por_ano <- aggregate(list(Count=batalhas$major_capture), by=list(Years=batalhas$year), 
+                            FUN=sum, na.rm=TRUE)
+mortes_por_ano <- aggregate(list(Count=batalhas$major_death), by=list(Years=batalhas$year), 
+                          FUN=sum, na.rm=TRUE)
+caps_por_ano$Type = rep("Captures",nrow(caps_por_ano))
+mortes_por_ano$Type = rep("Deaths",nrow(caps_por_ano))
+
+total <- rbind(caps_por_ano, mortes_por_ano)
+
+ggplot(total, aes(Years, Count, fill=Type))+
+  geom_bar(stat = "identity", position = "dodge", width = 0.5)+
+  labs(title = "Maiores capturas e mortes ao longo dos anos")+
+  scale_fill_manual(values = c("coral3","darkgoldenrod1"))
+
+#Podemos ver que o número de mortes excede em todos os anos o número de capturas
+#novamente, o ano de 299 foi o mais violento
+
+#número de reis atacantes
+
+str(batalhas)
+
+batalhas$attacker_outcome = 4- (is.na(batalhas$attacker_1) + is.na(batalhas$attacker_2) + 
+                                  is.na(batalhas$attacker_3) + is.na(batalhas$attacker_4))
+
+ggplot(batalhas, aes(attacker_outcome))+
+  geom_histogram(color="coral3", fill ="coral3", alpha=0.5)+
+  labs(x="Número de reis atacantes", title="Número de reis atacantes por resultado de batalhas")
+
+#teste t sobre o tamanho de um exercíto e resultados do ataque
+
+t.test(batalhas$attacker_size~batalhas$attacker_outcome)
+
+boxplot(attacker_size~attacker_outcome, data = batalhas,
+        main = 'Visualização boxplot teste t: tamanho de um exercíto e resultados do ataque ',
+        xlab = "Resultado da batalha", ylab = "Tamanho do exercíto ofensivo",
+        col = c("brown","cyan4"))
+
+
+
+#teste t sobre o tamanho de um exercíto e resultados de defesa
+
+t.test(batalhas$defender_size~batalhas$attacker_outcome)
+
+
+t.test(defender_size~attacker_outcome, data = batalhas,
+       main = 'Visualização boxplot teste t',
+       xlab = "Resultado da batalha", ylab = "Tamanho do exercíto defensivo",
+       col = c("brown","cyan4")
+       
+# O que os boxplots estão nos dizendo é que quanto menor o exército de defensores é, mais os atacantes ganham.
+
+
